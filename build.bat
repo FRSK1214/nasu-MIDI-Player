@@ -1,1 +1,1 @@
-g++ -std=c++2a -O3 -mwindows -DUNICODE -D_UNICODE -DUSE_SKA_SORT -I. src/main.cpp src/Core/MidiParser.cpp src/Graphics/Renderer.cpp -o BlackMidiPlayer.exe -fopenmp -ld3d11 -ldxgi -ld3dcompiler -ldxguid -lwinmm -lpsapi -lgomp -static -static-libstdc++ -static-libgcc
+g++ -std=c++2a -O3 -mwindows -DUNICODE -D_UNICODE -DUSE_SKA_SORT -I. src/main.cpp src/Core/MidiParser.cpp src/Graphics/Renderer.cpp -o nasuMidiPlayer.exe -fopenmp -ld3d11 -ldxgi -ld3dcompiler -ldxguid -lwinmm -lpsapi -lgomp -static -static-libstdc++ -static-libgcc
