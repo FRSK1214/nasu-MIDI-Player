@@ -35,7 +35,7 @@ g++ -std=c++2a -O3 -mwindows -DUNICODE -D_UNICODE -DUSE_SKA_SORT -I. src/main.cp
 
 ## Usage
 
-1. Launch `BlackMidiPlayer.exe`
+1. Launch `nasuMidiPlayer.exe`
 2. Drag & drop a MIDI file onto the window
 3. Playback and visualization will start
 
