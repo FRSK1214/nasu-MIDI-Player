@@ -26,7 +26,7 @@ namespace BlackMidi {
         float secondsPerScreen;
         float windowWidth;
         float windowHeight;
-        uint32_t startInstance;  // first visible note index passed to the shader
+        uint32_t startInstance;
         float _pad[3];
     };
 
@@ -69,11 +69,9 @@ namespace BlackMidi {
         float beatsPerScreen = 4.0f;
         float secondsPerScreen = 4.0f;
 
-        // NoteDataStore を直接参照して可視範囲カリングする（重複メモリを持たない）
         const std::vector<float>* noteStartTimes = nullptr;
         const std::vector<float>* noteDurations = nullptr;
 
-        // Updated each frame in render()
         uint32_t visibleStart = 0;
         uint32_t visibleCount = 0;
         float maxNoteDuration = 0.0f;

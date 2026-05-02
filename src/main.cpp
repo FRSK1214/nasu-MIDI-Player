@@ -177,7 +177,7 @@ void MIDIThreadProc() {
         std::cerr << "[WARN] Failed to set MIDI thread priority to THREAD_PRIORITY_HIGHEST." << std::endl;
     }
 
-    constexpr float kMidiDispatchLookaheadSec = 0.010f; // 10ms
+    constexpr float kMidiDispatchLookaheadSec = 0.010f;
 
     auto nextWake = std::chrono::steady_clock::now();
 
@@ -209,8 +209,6 @@ void MIDIThreadProc() {
                 g_NextNoteIndex++;
             }
 
-            // 最短終了時刻から順に処理する min-heap により、
-            // 毎ループ O(active) 走査を避けて送信ジッタを低減する。
             while (!g_ActiveNotes.empty() && g_ActiveNotes.top().endTime <= currentTime) {
                 const ActiveNote n = g_ActiveNotes.top();
                 g_ActiveNotes.pop();
@@ -272,8 +270,6 @@ void LoadMidiFile(const std::wstring& filePath) {
 
         if (g_MIDIPlayer) g_MIDIPlayer->allNotesOff();
 
-        // 解析完了後に再度リセットすることで、解析にかかった時間が
-        // 最初のフレームの deltaTime に混入して冒頭ノートが飛ぶのを防ぐ
         g_Clock->reset();
         g_PlaybackTimeSec.store(0.0f, std::memory_order_relaxed);
         {

@@ -34,13 +34,10 @@ namespace BlackMidi {
             return startTimes.size();
         }
 
-        // ska_sort (radix sort) による高速ソート。
-        // 一時 struct にまとめて ska_sort し、展開して書き戻す。
         void sort() {
             const size_t n = size();
             if (n == 0) return;
 
-            // ---- 1. SoA → AoS (一時 struct に詰める) ----
             struct NoteEntry {
                 float    startTime;
                 float    duration;
@@ -57,11 +54,9 @@ namespace BlackMidi {
                                channels[i], tracks[i] };
             }
 
-            // ---- 2. ska_sort: float キーでラジックスソート (O(n)) ----
             ska_sort(entries.begin(), entries.end(),
                      [](const NoteEntry &e) { return e.startTime; });
 
-            // ---- 3. AoS → SoA に書き戻す ----
             for (size_t i = 0; i < n; ++i) {
                 startTimes[i]  = entries[i].startTime;
                 durations[i]   = entries[i].duration;

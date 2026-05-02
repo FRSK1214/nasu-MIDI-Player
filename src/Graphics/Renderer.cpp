@@ -28,16 +28,15 @@ struct VS_OUTPUT {
 cbuffer ConstantBuffer : register(b0) {
     float4x4 g_ViewProjection;
     float g_CurrentTime;
-    float g_SecondsPerScreen;  // 1画面に表示する拍数 (Quarter Notes)
+    float g_SecondsPerScreen;
     float g_WindowWidth;
     float g_WindowHeight;
-    uint  g_StartInstance;     // index of first visible note in g_Notes
+    uint  g_StartInstance;
     float3 _pad;
 };
 
 StructuredBuffer<Note> g_Notes : register(t0);
 
-// HSV to RGB 変換関数
 float3 hsv2rgb(float3 c) {
     float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
     float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
@@ -64,10 +63,8 @@ VS_OUTPUT main(VS_INPUT input) {
         return output;
     }
 
-    // X軸: キー番号 (0-127) -> NDC (-1.0 to 1.0)
     float xBase = ((float)note.key / 127.0f) * 1.9f - 0.95f;
 
-    // Y軸: 画面下端(-1.0)から上端(1.0)までの2.0の範囲を、secondsPerScreenで割る
     float yBase = -1.0f + (timeDiff / g_SecondsPerScreen) * 2.0f;
 
     float noteWidth = 0.8f / 127.0f;
@@ -234,7 +231,6 @@ float4 main(PS_INPUT input) : SV_TARGET {
     bool Renderer::uploadNotes(const NoteDataStore &store) {
         this->noteCount = static_cast<uint32_t>(store.size());
 
-        // 可視範囲カリング用に NoteDataStore の配列を直接参照（メモリ重複を避ける）
         noteStartTimes = &store.startTimes;
         noteDurations = &store.durations;
         maxNoteDuration = 0.0f;
@@ -333,32 +329,21 @@ float4 main(PS_INPUT input) : SV_TARGET {
         context->ClearRenderTargetView(renderTargetView.Get(), clearColor);
 
         if (vertexShader && pixelShader && noteSRV) {
-            // ---------------------------------------------------------------
-            // CPU-side visible-range culling via binary search
-            // Notes are sorted by startTime (guaranteed by MidiParser).
-            // A note is visible when:  startTime + duration >= currentTime
-            //                    AND   startTime             <= currentTime + secondsPerScreen
-            // ---------------------------------------------------------------
             constexpr float kEpsilon = 1e-4f;
             const float windowEnd = currentTime + secondsPerScreen;
 
             if (noteStartTimes && noteDurations && !noteStartTimes->empty()) {
-                // startTime + duration >= currentTime を満たす可能性がある最初の候補。
-                // 正確性のため、secondsPerScreen ではなく全体の最大ノート長を使う。
-                // これでロングノートが途中で消える問題を防ぐ。
                 const float searchStart = currentTime - maxNoteDuration - kEpsilon;
                 const auto loIt = std::lower_bound(
                     noteStartTimes->begin(), noteStartTimes->end(), searchStart);
                 visibleStart = static_cast<uint32_t>(
                     std::distance(noteStartTimes->begin(), loIt));
 
-                // Fine-tune: skip notes whose startTime + duration < currentTime
                 while (visibleStart < noteCount &&
                        (*noteStartTimes)[visibleStart] + (*noteDurations)[visibleStart] < currentTime - kEpsilon) {
                     ++visibleStart;
                 }
 
-                // Upper bound: first note whose startTime > windowEnd
                 const auto hiIt = std::upper_bound(
                     noteStartTimes->begin() + visibleStart,
                     noteStartTimes->end(),
@@ -393,10 +378,7 @@ float4 main(PS_INPUT input) : SV_TARGET {
             context->IASetInputLayout(nullptr);
             context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-            // Only draw the visible slice; skip the call entirely when nothing is on screen.
             if (visibleCount > 0) {
-                // StartInstanceLocation is 0; the shader uses g_StartInstance (cbuffer)
-                // to offset into g_Notes so instanceID stays 0-based within the slice.
                 context->DrawInstanced(4, visibleCount, 0, 0);
             }
         }

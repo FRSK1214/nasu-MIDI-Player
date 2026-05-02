@@ -70,14 +70,11 @@ struct TempoSegment {
     double   ticksToSec;
 };
 
-// tick→秒変換: tempoSegs は tick 昇順であることが前提。
-// parseTrack 内でカーソルを前に進めるだけなので呼び出しコストは O(1) 均償。
 static inline float TickToSecAtCursor(
     const uint32_t tick,
     const std::vector<TempoSegment>& segs,
     size_t& cursor)
 {
-    // カーソルを前に進める（tick は単調増加なので巻き戻しは不要）
     while (cursor + 1 < segs.size() && segs[cursor + 1].tick <= tick)
         ++cursor;
     return static_cast<float>(segs[cursor].seconds + (tick - segs[cursor].tick) * segs[cursor].ticksToSec);
@@ -149,7 +146,6 @@ static TrackSoA parseTrack(
     uint32_t curTick = 0;
     uint8_t  runStat = 0;
 
-    // テンポセグメントカーソル: tick は単調増加なので前進のみ → O(1) 均償
     size_t tempoCursor = 0;
 
     struct Pending { float start; uint8_t vel; bool active; };
@@ -168,7 +164,6 @@ static TrackSoA parseTrack(
         if (type == 0x90 || type == 0x80) {
             const uint8_t key = *tp++ & 0x7F;
             const uint8_t vel = *tp++ & 0x7F;
-            // 毎回全探索していた TickToSec をカーソル方式に変更
             const float   sec = TickToSecAtCursor(curTick, tempoSegs, tempoCursor);
             if (type == 0x90 && vel > 0) {
                 pending[ch][key] = {sec, vel, true};
@@ -275,7 +270,7 @@ bool MidiParser::parse(const std::wstring& filePath, NoteDataStore& outStore) {
     if (p + 14 > end || std::memcmp(p, "MThd", 4) != 0) return false;
     p += 4;
     const uint32_t hdrSize  = Read32BE(p);
-    Read16BE(p); // format type
+    Read16BE(p);
     const uint16_t numTracks = Read16BE(p);
     const uint16_t division  = Read16BE(p);
     p = mapped->data + 8 + hdrSize;
@@ -298,15 +293,12 @@ bool MidiParser::parse(const std::wstring& filePath, NoteDataStore& outStore) {
     tempoEvents.reserve(256);
     tempoEvents.emplace_back(0u, 500000u);
 
-    // テンポ定義は本来どのトラックにも置けるため、全トラックを走査して正確性を優先する。
-    // （一部ファイルは track 0 以外にテンポイベントを持つ）
     for (const auto& [start, size] : tracks)
         CollectTempoEventsFromTrack(start, size, tempoEvents);
 
     std::sort(tempoEvents.begin(), tempoEvents.end(),
               [](const auto& a, const auto& b) { return a.first < b.first; });
 
-    // 同tickの重複は最後のイベントを採用
     std::vector<std::pair<uint32_t, uint32_t>> dedupTempo;
     dedupTempo.reserve(tempoEvents.size());
     for (const auto& ev : tempoEvents) {
