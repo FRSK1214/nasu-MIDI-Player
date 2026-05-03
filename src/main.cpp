@@ -32,6 +32,9 @@ std::unique_ptr<NoteDataStore> g_NoteStore;
 std::unique_ptr<MIDIPlayer> g_MIDIPlayer;
 
 size_t g_NextNoteIndex = 0;
+size_t g_NextCCIndex = 0;
+size_t g_NextPCIndex = 0;
+size_t g_NextPBIndex = 0;
 size_t g_NextTempoIndex = 0;
 struct ActiveNote {
     float endTime;
@@ -193,6 +196,60 @@ void MIDIThreadProc() {
         {
             std::lock_guard<std::mutex> lock(g_MIDIStateMutex);
 
+            while (true) {
+                bool hasEvent = false;
+                float nextTime = 0.0f;
+                int nextType = -1;
+
+                if (g_NextPCIndex < g_NoteStore->pcTimes.size()) {
+                    const float t = g_NoteStore->pcTimes[g_NextPCIndex];
+                    if (t <= dispatchTime) {
+                        hasEvent = true;
+                        nextTime = t;
+                        nextType = 0;
+                    }
+                }
+
+                if (g_NextCCIndex < g_NoteStore->ccTimes.size()) {
+                    const float t = g_NoteStore->ccTimes[g_NextCCIndex];
+                    if (t <= dispatchTime && (!hasEvent || t < nextTime || (t == nextTime && nextType > 1))) {
+                        hasEvent = true;
+                        nextTime = t;
+                        nextType = 1;
+                    }
+                }
+
+                if (g_NextPBIndex < g_NoteStore->pbTimes.size()) {
+                    const float t = g_NoteStore->pbTimes[g_NextPBIndex];
+                    if (t <= dispatchTime && (!hasEvent || t < nextTime || (t == nextTime && nextType > 2))) {
+                        hasEvent = true;
+                        nextTime = t;
+                        nextType = 2;
+                    }
+                }
+
+                if (!hasEvent) break;
+
+                if (nextType == 0) {
+                    const uint8_t channel = g_NoteStore->pcChannels[g_NextPCIndex];
+                    const uint8_t program = g_NoteStore->pcPrograms[g_NextPCIndex];
+                    g_MIDIPlayer->sendShortMsg(0xC0 | (channel & 0x0F), program & 0x7F, 0);
+                    g_NextPCIndex++;
+                } else if (nextType == 1) {
+                    const uint8_t channel = g_NoteStore->ccChannels[g_NextCCIndex];
+                    const uint8_t ccNum = g_NoteStore->ccNumbers[g_NextCCIndex];
+                    const uint8_t ccVal = g_NoteStore->ccValues[g_NextCCIndex];
+                    g_MIDIPlayer->sendShortMsg(0xB0 | (channel & 0x0F), ccNum & 0x7F, ccVal & 0x7F);
+                    g_NextCCIndex++;
+                } else {
+                    const uint8_t channel = g_NoteStore->pbChannels[g_NextPBIndex];
+                    const uint8_t lsb = g_NoteStore->pbLSB[g_NextPBIndex];
+                    const uint8_t msb = g_NoteStore->pbMSB[g_NextPBIndex];
+                    g_MIDIPlayer->sendShortMsg(0xE0 | (channel & 0x0F), lsb & 0x7F, msb & 0x7F);
+                    g_NextPBIndex++;
+                }
+            }
+
             while (g_NextNoteIndex < g_NoteStore->size() &&
                    g_NoteStore->startTimes[g_NextNoteIndex] <= dispatchTime) {
                 const float noteStart = g_NoteStore->startTimes[g_NextNoteIndex];
@@ -254,6 +311,9 @@ void LoadMidiFile(const std::wstring& filePath) {
     {
         std::lock_guard<std::mutex> lock(g_MIDIStateMutex);
         g_NextNoteIndex = 0;
+        g_NextCCIndex = 0;
+        g_NextPCIndex = 0;
+        g_NextPBIndex = 0;
         g_NextTempoIndex = 0;
         g_ActiveNotes = decltype(g_ActiveNotes)();
     }
@@ -275,9 +335,16 @@ void LoadMidiFile(const std::wstring& filePath) {
         {
             std::lock_guard<std::mutex> lock(g_MIDIStateMutex);
             g_NextNoteIndex = 0;
+            g_NextCCIndex = 0;
+            g_NextPCIndex = 0;
+            g_NextPBIndex = 0;
             g_NextTempoIndex = 0;
             g_ActiveNotes = decltype(g_ActiveNotes)();
         }
+
+        std::cout << "[INFO] Parsed CC events: " << g_NoteStore->ccTimes.size()
+                  << " PC events: " << g_NoteStore->pcTimes.size()
+                  << " PB events: " << g_NoteStore->pbTimes.size() << std::endl;
 
         StartMIDIThread();
     } else {
@@ -318,15 +385,26 @@ auto WndProc(HWND hWnd, const UINT message, const WPARAM wParam, const LPARAM lP
                     break;
                 case 'R':
                     if (g_Clock) {
+                        StopMIDIThread();
+                        if (g_MIDIPlayer) g_MIDIPlayer->allNotesOff();
+
                         g_Clock->reset();
                         g_PlaybackTimeSec.store(0.0f, std::memory_order_relaxed);
                         {
                             std::lock_guard<std::mutex> lock(g_MIDIStateMutex);
                             g_NextNoteIndex = 0;
+                            g_NextCCIndex = 0;
+                            g_NextPCIndex = 0;
+                            g_NextPBIndex = 0;
                             g_NextTempoIndex = 0;
                             g_ActiveNotes = decltype(g_ActiveNotes)();
                         }
-                        if (g_MIDIPlayer) g_MIDIPlayer->allNotesOff();
+
+                        if (g_Renderer && g_NoteStore && !g_NoteStore->tempoMap.empty()) {
+                            g_Renderer->setBPM(g_NoteStore->tempoMap[0].bpm);
+                        }
+
+                        StartMIDIThread();
                     }
                     break;
                 case VK_UP:

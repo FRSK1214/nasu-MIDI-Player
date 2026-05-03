@@ -20,6 +20,20 @@ namespace BlackMidi {
         std::vector<uint8_t> tracks;
         std::vector<TempoEvent> tempoMap;
 
+        std::vector<float>   ccTimes;
+        std::vector<uint8_t> ccChannels;
+        std::vector<uint8_t> ccNumbers;
+        std::vector<uint8_t> ccValues;
+
+        std::vector<float>   pcTimes;
+        std::vector<uint8_t> pcChannels;
+        std::vector<uint8_t> pcPrograms;
+
+        std::vector<float>   pbTimes;
+        std::vector<uint8_t> pbChannels;
+        std::vector<uint8_t> pbLSB;
+        std::vector<uint8_t> pbMSB;
+
         void addNote(const float startTime, const float duration, const uint8_t key, const uint8_t velocity,
                      const uint8_t channel, const uint8_t track) {
             startTimes.push_back(startTime);

@@ -1,9 +1,3 @@
-/**
- * @file NotePS.hlsl
- * @brief 描画テスト用 Pixel Shader
- * 全てのピクセルを強制的に真っ赤に出力します。
- */
-
 struct PS_INPUT {
     float4 position : SV_POSITION;
     float4 color : COLOR;

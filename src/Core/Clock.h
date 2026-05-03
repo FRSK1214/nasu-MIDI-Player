@@ -20,14 +20,15 @@ namespace BlackMidi {
         }
 
         void tick() {
-            if (paused) {
-                deltaTime = 0.0;
-                return;
-            }
-
             LARGE_INTEGER now;
             QueryPerformanceCounter(&now);
             currentTime = now;
+
+            if (paused) {
+                lastTime = currentTime;
+                deltaTime = 0.0;
+                return;
+            }
 
             deltaTime = static_cast<double>(currentTime.QuadPart - lastTime.QuadPart) / frequency.QuadPart;
             totalTime += deltaTime;
@@ -35,7 +36,14 @@ namespace BlackMidi {
         }
 
         void togglePause() {
+            const bool wasPaused = paused;
             paused = !paused;
+
+            if (wasPaused && !paused) {
+                QueryPerformanceCounter(&lastTime);
+                currentTime = lastTime;
+                deltaTime = 0.0;
+            }
         }
 
         double getTotalTime() const {

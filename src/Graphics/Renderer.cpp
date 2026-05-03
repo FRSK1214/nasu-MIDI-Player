@@ -43,8 +43,9 @@ float3 hsv2rgb(float3 c) {
     return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
-float4 GetNoteColor(uint channel, uint velocity) {
-    float hue = frac((float)channel * 0.381966f);
+float4 GetNoteColor(uint channel, uint track, uint velocity) {
+    uint key = track * 17u + channel;
+    float hue = frac((float)key * 0.381966f);
     float saturation = 0.85f;
     float value = 0.6f + 0.4f * ((float)velocity / 127.0f);
     float3 rgb = hsv2rgb(float3(hue, saturation, value));
@@ -77,7 +78,7 @@ VS_OUTPUT main(VS_INPUT input) {
     else if (input.vertexID == 3) offset = float2(noteWidth, noteHeight);
 
     output.position = float4(xBase + offset.x, yBase + offset.y, 0.5f, 1.0f);
-    output.color = GetNoteColor(note.channel, note.velocity);
+    output.color = GetNoteColor(note.channel, note.track, note.velocity);
     return output;
 }
 )";
