@@ -2,6 +2,7 @@
 
 A high-performance Black MIDI player for Windows.
 It visualizes notes with DirectX 11 and sends real-time MIDI output via OmniMIDI.
+<img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/FRSK1214/nasu-MIDI-Player/total">
 
 ---
 
