@@ -49,6 +49,7 @@ target_link_libraries(BlackMidiPlayer PRIVATE
         d3dcompiler
         dxguid
         winmm
+        psapi
 )
 
 # 【重要】MinGW環境で依然としてGOMPエラーが出る場合の強制上書き

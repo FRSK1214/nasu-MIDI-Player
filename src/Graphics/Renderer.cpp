@@ -105,25 +105,25 @@ float4 main(PS_INPUT input) : SV_TARGET {
         this->windowWidth = width;
         this->windowHeight = height;
 
-        std::cout << "[INFO] Creating Device and SwapChain..." << std::endl;
+        std::cout << "[Renderer] Creating device and swap chain..." << std::endl;
         if (!createDeviceAndSwapChain(hWnd, width, height)) {
-            std::cerr << "[ERROR] Failed to create D3D11 Device and SwapChain." << std::endl;
+            std::cerr << "[Renderer] Failed to create D3D11 device and swap chain." << std::endl;
             return false;
         }
 
-        std::cout << "[INFO] Creating Resources..." << std::endl;
+        std::cout << "[Renderer] Creating resources..." << std::endl;
         if (!createResources()) {
-            std::cerr << "[ERROR] Failed to create D3D11 Resources." << std::endl;
+            std::cerr << "[Renderer] Failed to create D3D11 resources." << std::endl;
             return false;
         }
 
-        std::cout << "[INFO] Setting up Shaders..." << std::endl;
+        std::cout << "[Renderer] Setting up shaders..." << std::endl;
         if (!setupShaders()) {
-            std::cerr << "[ERROR] Failed to setup Shaders." << std::endl;
+            std::cerr << "[Renderer] Failed to set up shaders." << std::endl;
             return false;
         }
 
-        std::cout << "[INFO] Renderer initialization complete." << std::endl;
+        std::cout << "[Renderer] Initialization complete." << std::endl;
         return true;
     }
 
@@ -159,8 +159,8 @@ float4 main(PS_INPUT input) : SV_TARGET {
         );
 
         if (FAILED(hr)) {
-            std::cout << "[WARN] Hardware D3D11 device creation failed (HRESULT: 0x" << std::hex << hr << std::dec <<
-                    "). Retrying with WARP (Software)..." << std::endl;
+            std::cout << "[Renderer] Warning: hardware D3D11 device creation failed (HRESULT: 0x" << std::hex << hr << std::dec <<
+                    "). Retrying with WARP (software)..." << std::endl;
             hr = D3D11CreateDeviceAndSwapChain(
                 nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0, featureLevels, 3,
                 D3D11_SDK_VERSION, &sd, &swapChain, &device, &featureLevel, &context
@@ -168,7 +168,7 @@ float4 main(PS_INPUT input) : SV_TARGET {
         }
 
         if (FAILED(hr)) {
-            std::cout << "[WARN] WARP device creation failed. Retrying with REFERENCE..." << std::endl;
+            std::cout << "[Renderer] Warning: WARP device creation failed. Retrying with REFERENCE..." << std::endl;
             hr = D3D11CreateDeviceAndSwapChain(
                 nullptr, D3D_DRIVER_TYPE_REFERENCE, nullptr, 0, featureLevels, 3,
                 D3D11_SDK_VERSION, &sd, &swapChain, &device, &featureLevel, &context
@@ -176,25 +176,25 @@ float4 main(PS_INPUT input) : SV_TARGET {
         }
 
         if (FAILED(hr)) {
-            std::cerr << "[ERROR] D3D11CreateDeviceAndSwapChain failed all attempts. HRESULT: 0x" << std::hex << hr <<
+            std::cerr << "[Renderer] D3D11CreateDeviceAndSwapChain failed all attempts. HRESULT: 0x" << std::hex << hr <<
                     std::dec << std::endl;
             return false;
         }
 
-        std::cout << "[INFO] D3D11 Device created. Feature Level: 0x" << std::hex << featureLevel << std::dec <<
+        std::cout << "[Renderer] D3D11 device created. Feature level: 0x" << std::hex << featureLevel << std::dec <<
                 std::endl;
 
         ComPtr<ID3D11Texture2D> backBuffer;
         hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &backBuffer);
         if (FAILED(hr)) {
-            std::cerr << "[ERROR] Failed to get BackBuffer from SwapChain. HRESULT: 0x" << std::hex << hr << std::dec <<
+            std::cerr << "[Renderer] Failed to get back buffer from swap chain. HRESULT: 0x" << std::hex << hr << std::dec <<
                     std::endl;
             return false;
         }
 
         hr = device->CreateRenderTargetView(backBuffer.Get(), nullptr, &renderTargetView);
         if (FAILED(hr)) {
-            std::cerr << "[ERROR] Failed to create RenderTargetView. HRESULT: 0x" << std::hex << hr << std::dec <<
+            std::cerr << "[Renderer] Failed to create render target view. HRESULT: 0x" << std::hex << hr << std::dec <<
                     std::endl;
             return false;
         }
@@ -210,7 +210,7 @@ float4 main(PS_INPUT input) : SV_TARGET {
         cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         HRESULT hr = device->CreateBuffer(&cbd, nullptr, &constantBuffer);
         if (FAILED(hr)) {
-            std::cerr << "[ERROR] CreateBuffer (ConstantBuffer) failed with HRESULT: 0x" << std::hex << hr << std::dec
+            std::cerr << "[Renderer] CreateBuffer (ConstantBuffer) failed with HRESULT: 0x" << std::hex << hr << std::dec
                     << std::endl;
             return false;
         }
@@ -221,7 +221,7 @@ float4 main(PS_INPUT input) : SV_TARGET {
         rDesc.DepthClipEnable = TRUE;
         hr = device->CreateRasterizerState(&rDesc, &rasterizerState);
         if (FAILED(hr)) {
-            std::cerr << "[ERROR] CreateRasterizerState failed with HRESULT: 0x" << std::hex << hr << std::dec <<
+            std::cerr << "[Renderer] CreateRasterizerState failed with HRESULT: 0x" << std::hex << hr << std::dec <<
                     std::endl;
             return false;
         }
@@ -283,10 +283,10 @@ float4 main(PS_INPUT input) : SV_TARGET {
                                 &errorBlob);
         if (FAILED(hr)) {
             if (errorBlob) {
-                std::cerr << "[ERROR] Vertex Shader Compilation Failed: " << static_cast<char *>(errorBlob->
+                std::cerr << "[Renderer] Vertex shader compilation failed: " << static_cast<char *>(errorBlob->
                     GetBufferPointer()) << std::endl;
             } else {
-                std::cerr << "[ERROR] Vertex Shader Compilation Failed with HRESULT: 0x" << std::hex << hr << std::dec
+                std::cerr << "[Renderer] Vertex shader compilation failed with HRESULT: 0x" << std::hex << hr << std::dec
                         << std::endl;
             }
             return false;
@@ -298,10 +298,10 @@ float4 main(PS_INPUT input) : SV_TARGET {
                         &errorBlob);
         if (FAILED(hr)) {
             if (errorBlob) {
-                std::cerr << "[ERROR] Pixel Shader Compilation Failed: " << static_cast<char *>(errorBlob->
+                std::cerr << "[Renderer] Pixel shader compilation failed: " << static_cast<char *>(errorBlob->
                     GetBufferPointer()) << std::endl;
             } else {
-                std::cerr << "[ERROR] Pixel Shader Compilation Failed with HRESULT: 0x" << std::hex << hr << std::dec <<
+                std::cerr << "[Renderer] Pixel shader compilation failed with HRESULT: 0x" << std::hex << hr << std::dec <<
                         std::endl;
             }
             return false;

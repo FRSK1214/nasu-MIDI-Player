@@ -26,7 +26,7 @@ namespace BlackMidi {
         bool open() {
             hLib = LoadLibrary(_T("OmniMIDI.dll"));
             if (!hLib) {
-                std::cerr << "[ERROR] OmniMIDI.dll not found. Please install OmniMIDI driver." << std::endl;
+                std::cerr << "[Audio] OmniMIDI.dll not found. Please install OmniMIDI driver." << std::endl;
                 return false;
             }
 
@@ -37,21 +37,21 @@ namespace BlackMidi {
             pSendDirectData = reinterpret_cast<LPSENDDIRECTDATA>(GetProcAddress(hLib, "SendDirectData"));
 
             if (!pIsAvailable || !pInitialize || !pTerminate || !pReset || !pSendDirectData) {
-                std::cerr << "[ERROR] Failed to get KDMAPI function addresses." << std::endl;
+                std::cerr << "[Audio] Failed to get KDMAPI function addresses." << std::endl;
                 return false;
             }
 
             if (!pIsAvailable()) {
-                std::cerr << "[ERROR] KDMAPI is not available." << std::endl;
+                std::cerr << "[Audio] KDMAPI is not available." << std::endl;
                 return false;
             }
 
             if (!pInitialize()) {
-                std::cerr << "[ERROR] Failed to initialize KDMAPI stream." << std::endl;
+                std::cerr << "[Audio] Failed to initialize KDMAPI stream." << std::endl;
                 return false;
             }
 
-            std::cout << "[INFO] OmniMIDI (KDMAPI) initialized successfully." << std::endl;
+            std::cout << "[Audio] OmniMIDI (KDMAPI) initialized successfully" << std::endl;
             return true;
         }
 

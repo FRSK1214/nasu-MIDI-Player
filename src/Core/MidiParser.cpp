@@ -12,7 +12,9 @@
 #include <thread>
 #include <atomic>
 #include <windows.h>
+#include <psapi.h>
 #include <utility>
+#include <iomanip>
 
 #ifdef USE_SKA_SORT
 #include "ska_sort.hpp"
@@ -331,12 +333,13 @@ bool MidiParser::parse(const std::wstring& filePath, NoteDataStore& outStore) {
     }
 
     const auto t0 = std::chrono::steady_clock::now();
+    const auto tParseBegin = t0;
 
     std::unique_ptr<MappedFile> mapped;
     try {
         mapped = std::make_unique<MappedFile>(filePath);
     } catch (const std::exception& e) {
-        std::cerr << "[ERROR] " << e.what() << std::endl;
+        std::cerr << "[MIDI] " << e.what() << std::endl;
         return false;
     }
 
@@ -353,9 +356,10 @@ bool MidiParser::parse(const std::wstring& filePath, NoteDataStore& outStore) {
 
     const bool isTPQN = (division & 0x8000u) == 0;
 
-    std::cout << "[INFO] Format:" << formatType << " Division:" << division
+    std::cout << "[MIDI] Header: format " << formatType
+              << ", division " << division
               << " (" << (isTPQN ? "TPQN" : "SMPTE") << ")"
-              << " Tracks:" << numTracks << std::endl;
+              << ", tracks " << numTracks << std::endl;
 
     struct TrackInfo { const uint8_t* start; uint32_t size; };
     std::vector<TrackInfo> tracks;
@@ -370,6 +374,8 @@ bool MidiParser::parse(const std::wstring& filePath, NoteDataStore& outStore) {
     }
 
     std::vector<TempoSegment> tempoSegs;
+
+    const auto tTimelineBegin = std::chrono::steady_clock::now();
 
     if (isTPQN) {
         std::vector<std::pair<uint32_t, uint32_t>> tempoEvents;
@@ -434,7 +440,7 @@ bool MidiParser::parse(const std::wstring& filePath, NoteDataStore& outStore) {
         tempoSegs.push_back({0u, 0.0, ticksToSec});
         outStore.tempoMap.push_back({0.0f, 120.0f});
 
-        std::cout << "[INFO] SMPTE timing: fps=" << fps
+        std::cout << "[MIDI] SMPTE timing: fps=" << fps
                   << " ticks/frame=" << static_cast<int>(ticksPerFrame)
                   << " sec/tick=" << ticksToSec << std::endl;
     }
@@ -622,9 +628,26 @@ bool MidiParser::parse(const std::wstring& filePath, NoteDataStore& outStore) {
 
     sortNoteStore(outStore);
 
-    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - t0).count();
-    std::cout << "[INFO] Parse complete: " << total << " notes (" << ms << " ms)" << std::endl;
+    const auto tEnd = std::chrono::steady_clock::now();
+    const double parseSec = std::chrono::duration<double>(tTimelineBegin - tParseBegin).count();
+    const double timelineSec = std::chrono::duration<double>(tEnd - tTimelineBegin).count();
+    const double totalSec = std::chrono::duration<double>(tEnd - t0).count();
+
+    PROCESS_MEMORY_COUNTERS_EX pmc{};
+    double memMb = 0.0;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc), sizeof(pmc))) {
+        memMb = static_cast<double>(pmc.PrivateUsage) / (1024.0 * 1024.0);
+    }
+
+    std::cout << "\n=== MIDI Loading Performance ===" << std::endl;
+    std::cout << std::fixed << std::setprecision(3)
+              << "File parsing:      " << parseSec << " seconds  (Memory: "
+              << std::setprecision(2) << memMb << " MB)" << std::endl;
+    std::cout << std::setprecision(3)
+              << "Timeline building: " << timelineSec << " seconds" << std::endl;
+    std::cout << "Total load time:   " << totalSec << " seconds" << std::endl;
+    std::cout << "================================" << std::endl;
+
     return true;
 }
 
